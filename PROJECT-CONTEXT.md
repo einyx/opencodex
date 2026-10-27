@@ -37,6 +37,13 @@ carry stable `QT-*` clause IDs. The machine-checkable form of that spec is
 `docs/features/polish/audit.md` and the phase plan in
 `docs/features/polish/plan.md`. Linear tracking: `PRY-5`…`PRY-40`.
 
+A hosted paid tier — "OpenCodeX Cloud", a per-tenant OpenCode server with a
+GitHub workspace and a metered subscription — is planned in
+`docs/features/hosted_cloud/` (`design.md` / `plan.md`) but is **not built**.
+It is scoped as a SaaS (isolation as a CI gate, double-entry ledger, gateway-
+enforced allowance, SLOs and runbooks) with milestones M0 → M1 → M2, anchored
+on M0.
+
 ## Key constraints
 
 - **Design tokens over ad-hoc values.** `Utils/DesignTokens.swift` owns color, type,

@@ -1,6 +1,6 @@
 # OpenCode iOS Client — Docs Index
 
-> Last updated: 2026-10-18 (Watch Ambient is marked Experimental; voice and tool return on a physical device work, but multi-turn conversations still drop and the root cause is unconfirmed). Always start from this index when reading or searching any document.
+> Last updated: 2026-10-27 (Watch Ambient is marked Experimental; voice and tool return on a physical device work, but multi-turn conversations still drop and the root cause is unconfirmed. A hosted paid tier — "OpenCodeX Cloud" — is proposed but not built). Always start from this index when reading or searching any document.
 
 ## Top-level living documents
 
@@ -21,6 +21,7 @@
 | `client_capabilities/` | Device capability extensions (V0: Health export) | `prd.md` / `rfc.md` / `protocol.md` | V0 shipped; `protocol.md` is the source of truth for the wire contract |
 | `context_compaction/` | Manual Context Compaction | `design.md` | proposal only, not implemented |
 | `session_finder/` | Session Finder smart session search | `design.md` | design draft |
+| `project_memory/` | Project Memory — the `AGENTS.md` surface: read the file the server injects into every turn, ask the agent to improve it, review the diff | `design.md` / `plan.md` | **implemented** (2026-10-27). P0 of the memory work: instruction context only — no client-side embedding index (the PRD reserves recall for the agent) |
 | `background_task_notification/` | Background subagent task notification rendering (TaskNotificationCard + the generic synthetic rule) | `design.md` | implemented |
 | `push_notifications/` | Background push notification approach | `research.md` | research |
 | `localization/` | en/zh-Hans bilingual localization | `research.md` | Settings already ships en/zh; the research doc is somewhat dated |
@@ -31,6 +32,7 @@
 | `file_changes_surface/` | Session changes & diff surface — a "N files changed" card in chat, a diff viewer (iPhone sheet / iPad preview column), a Files-tab Changes section, and automatic tree refresh when the agent writes | `design.md` / `plan.md` | **implemented** (2026-10-26); palette follows Warm Editorial (`design.md` §QT-PALETTE) |
 | `device_voice/` | Device-only voice — Ambient Mode, dictation and the Apple Watch with no hosted speech service, no token and no audio leaving the device | `design.md` / `plan.md` | **implemented** (2026-10-26); the hosted "AI Builder" realtime path is gone — on-device recognition, the user's own OpenCode server as the brain, on-device synthesis, and no credential anywhere |
 | `polish/` | Superpolished app experience — the "Quiet Tech" conformance initiative | `plan.md` / `rubric.md` / `audit.md` / `linear-backlog.md` | **Phase 0 complete** (rubric + measured audit + ranked backlog); **R1 (haptics) implemented, awaiting the privacy review**. 102 rubric rows: 45 PASS, 36 FAIL, 7 PARTIAL, 14 REVIEW. Tracked in Linear as `PRY-5`…`PRY-40`; `features/polish/rubric.md` is the machine-checkable form of `../design.md`, and `features/polish/audit.md` is the measured baseline it is enforced against |
+| `hosted_cloud/` | OpenCodeX Cloud — a hosted OpenCode agent SaaS for people with no server: per-tenant sandbox, GitHub repo as workspace, subscription with metered model access | `protocol.md` / `design.md` / `plan.md` | **proposal (2026-10-27)** — nothing implemented. Planned as a SaaS, not a spike: multi-tenant isolation as a CI gate, double-entry ledger with daily reconciliation, allowance enforced at the metering gateway, SLOs and runbooks. Milestones M0 (platform alpha) → M1 (private beta) → M2 (GA); the plan is anchored on M0. Decided: repo agent via GitHub App, IAP + web checkout with both honored. `protocol.md` is the source of truth for the client↔service wire contract |
 
 The approved OpenCodex Settings refresh is described in
 [`features/polish/settings-design.md`](features/polish/settings-design.md), with its
