@@ -205,6 +205,15 @@ struct ActivityTrackerTests {
         #expect(ActivityTracker.formatStatusFromPart(part) == "\(L10n.t(.activityMakingEdits)) - Update AppState")
     }
 
+    /// V2 names the shell tool "shell"; the composer still says the same.
+    @Test func shellToolStatusIsRunningCommands() throws {
+        let json = """
+        {"id":"p1","messageID":"m1","sessionID":"s1","type":"tool","text":null,"tool":"shell","callID":"c1","state":{"status":"running","input":{"command":"ls"}},"metadata":null,"files":null}
+        """
+        let part = try JSONDecoder().decode(Part.self, from: Data(json.utf8))
+        #expect(ActivityTracker.formatStatusFromPart(part) == "\(L10n.t(.activityRunningCommands)) - ls")
+    }
+
     @Test func debounceDelayWithinWindow() {
         let now = Date(timeIntervalSince1970: 200)
         let last = Date(timeIntervalSince1970: 198)

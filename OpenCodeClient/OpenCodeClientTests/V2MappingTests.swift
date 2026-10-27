@@ -115,6 +115,41 @@ struct V2MappingTests {
         #expect(message.parts[1].callID == "call_1")
     }
 
+    /// The REST snapshot and the live stream must build the same part ids, or
+    /// one call renders as two cards.
+    @Test func partIDsMatchTheLiveStream() throws {
+        let messages = try V2Mapper.messages(from: Data(#"""
+        {"data":[{"id":"msg_2","type":"assistant",
+        "content":[{"type":"reasoning","text":"thinking"},{"type":"text","text":"ok"},
+        {"type":"tool","id":"call_1","name":"shell","state":{"status":"running","input":{"command":"ls"}}}],
+        "time":{"created":2}}]}
+        """#.utf8), sessionID: "ses_1")
+        let message = try #require(messages.first)
+        #expect(message.parts.map(\.id) == [
+            "msg_2-reasoning-0",
+            "msg_2-text-0",
+            "msg_2-tool-call_1",
+        ])
+        #expect(message.parts[2].id == V2EventTranslator.toolPartID(messageID: "msg_2", callID: "call_1"))
+    }
+
+    /// V2 counts the ordinals per part type: the content array holds the
+    /// reasoning first, so the text part must not be numbered after it.
+    @Test func textAndReasoningAreNumberedPerType() throws {
+        let messages = try V2Mapper.messages(from: Data(#"""
+        {"data":[{"id":"msg_2","type":"assistant",
+        "content":[{"type":"reasoning","text":"one"},{"type":"text","text":"a"},{"type":"reasoning","text":"two"},{"type":"text","text":"b"}],
+        "time":{"created":2}}]}
+        """#.utf8), sessionID: "ses_1")
+        let message = try #require(messages.first)
+        #expect(message.parts.map(\.id) == [
+            "msg_2-reasoning-0",
+            "msg_2-text-0",
+            "msg_2-reasoning-1",
+            "msg_2-text-1",
+        ])
+    }
+
     @Test func idleAndUnknownMessageTypesAreSkipped() throws {
         let messages = try V2Mapper.messages(from: Data(#"""
         {"data":[{"id":"msg_1","type":"user","text":"hi","time":{"created":1}},{"id":"msg_2","type":"idle","time":{"created":2}}]}

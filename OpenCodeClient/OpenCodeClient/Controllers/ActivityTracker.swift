@@ -136,7 +136,8 @@ enum ActivityTracker {
                     return L10n.t(.activitySearchingWeb)
                 case "edit", "write":
                     return L10n.t(.activityMakingEdits)
-                case "bash":
+                case "bash", "shell":
+                    // V2 names the shell tool "shell".
                     return L10n.t(.activityRunningCommands)
                 default:
                     return nil

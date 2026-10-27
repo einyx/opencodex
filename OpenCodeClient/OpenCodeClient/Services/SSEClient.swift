@@ -267,6 +267,9 @@ actor SSEClient {
     ) async throws {
         var lineBuffer = Data()
         var eventDataLines: [String] = []
+        // One translator per connection: it carries the state of the tool
+        // calls V2 splits over several frames.
+        var translator = V2EventTranslator()
 
         func flushEventIfNeeded() {
             guard !eventDataLines.isEmpty else { return }
@@ -277,7 +280,7 @@ actor SSEClient {
             let data = Data(json.utf8)
             if generation == .v2 {
                 guard let frame = try? JSONDecoder().decode(V2EventTranslator.Frame.self, from: data),
-                      let event = V2EventTranslator.translate(frame) else {
+                      let event = translator.translate(frame) else {
                     return
                 }
                 continuation.yield(event)

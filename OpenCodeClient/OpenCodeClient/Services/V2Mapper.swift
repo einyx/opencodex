@@ -623,25 +623,44 @@ nonisolated private struct V2Message: Decodable {
         }
 
         var parts: [Part] = []
+        // V2 counts the ordinals per part type, and the SSE stream numbers
+        // them the same way. The REST snapshot and the live stream must build
+        // the same part id, or one call renders as two cards.
+        var textOrdinal = 0
+        var reasoningOrdinal = 0
         for (index, entry) in (content ?? []).enumerated() {
             switch entry.type {
-            case "text", "reasoning":
-                guard let text = entry.text else { continue }
+            case "text":
                 parts.append(Part(
-                    id: "\(id)-\(entry.type)-\(index)",
+                    id: "\(id)-text-\(textOrdinal)",
                     messageID: id,
                     sessionID: sessionID,
-                    type: entry.type,
-                    text: text,
+                    type: "text",
+                    text: entry.text,
                     tool: nil,
                     callID: nil,
                     state: nil,
                     metadata: nil,
                     files: nil
                 ))
+                textOrdinal += 1
+            case "reasoning":
+                parts.append(Part(
+                    id: "\(id)-reasoning-\(reasoningOrdinal)",
+                    messageID: id,
+                    sessionID: sessionID,
+                    type: "reasoning",
+                    text: entry.text,
+                    tool: nil,
+                    callID: nil,
+                    state: nil,
+                    metadata: nil,
+                    files: nil
+                ))
+                reasoningOrdinal += 1
             case "tool":
                 parts.append(Part(
-                    id: "\(id)-tool-\(index)",
+                    id: V2EventTranslator.toolPartID(messageID: id, callID: entry.id ?? String(index)),
                     messageID: id,
                     sessionID: sessionID,
                     type: "tool",

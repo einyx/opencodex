@@ -98,7 +98,10 @@ extension AppState {
                 dedupedMessages.append(message)
             }
             acceptedMessageSnapshotSequence = requestSequence
-            messages = dedupedMessages
+            // A snapshot taken while a tool call is still running does not
+            // know the call yet: the live card is kept until the server
+            // reports it.
+            messages = messageStore.mergeInFlightToolCalls(into: dedupedMessages)
 
             var partsByMessageID: [String: [Part]] = [:]
             for message in messages {

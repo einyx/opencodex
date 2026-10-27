@@ -6,14 +6,29 @@ import Testing
 /// measured against upstream `v2.1.3`; see `docs/features/v2_support/plan.md`.
 struct V2EventTranslationTests {
     private func translate(_ json: String) -> SSEEvent? {
+        var translator = V2EventTranslator()
+        return translate(json, with: &translator)
+    }
+
+    /// The translator is stateful (it carries the tool call state forward), so
+    /// a sequence of frames needs one instance.
+    private func translate(_ json: String, with translator: inout V2EventTranslator) -> SSEEvent? {
         guard let frame = try? JSONDecoder().decode(V2EventTranslator.Frame.self, from: Data(json.utf8)) else {
             return nil
         }
-        return V2EventTranslator.translate(frame)
+        return translator.translate(frame)
     }
 
     private func properties(_ event: SSEEvent?) -> [String: Any] {
         (event?.payload.properties ?? [:]).mapValues(\.value)
+    }
+
+    private func part(_ event: SSEEvent?) -> [String: Any]? {
+        properties(event)["part"] as? [String: Any]
+    }
+
+    private func partState(_ event: SSEEvent?) -> [String: Any]? {
+        part(event)?["state"] as? [String: Any]
     }
 
     @Test func serverConnectedBecomesTheServerConnectedEvent() throws {
@@ -129,5 +144,92 @@ struct V2EventTranslationTests {
         let error = props["error"] as? [String: Any]
         #expect(error?["name"] as? String == "ProviderError")
         #expect((error?["data"] as? [String: Any])?["message"] as? String == "boom")
+    }
+
+    // MARK: - Tool calls
+
+    /// The six frames V2 splits one tool call over, captured from a live
+    /// `opencode 2.1.3` server.
+    private static let toolInputStarted = #"{"id":"t1","type":"session.tool.input.started","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","name":"shell"}}"#
+    private static let toolInputEnded = #"{"id":"t2","type":"session.tool.input.ended","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","text":"{\"command\":\"echo hi\"}"}}"#
+    private static let toolCalled = #"{"id":"t3","type":"session.tool.called","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","input":{"command":"echo hi"},"executed":false}}"#
+    private static let toolProgress = #"{"id":"t4","type":"session.tool.progress","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","metadata":{"shellID":"sh_1"}}}"#
+    private static let toolSuccess = #"{"id":"t5","type":"session.tool.success","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","content":[{"type":"text","text":"hi\n"}],"metadata":{"status":"completed","exit":0},"executed":false}}"#
+    private static let toolFailed = #"{"id":"t6","type":"session.tool.failed","data":{"sessionID":"ses_1","assistantMessageID":"msg_1","id":"call_1","error":{"type":"tool.execution","message":"File not found"},"executed":false}}"#
+
+    @Test func toolInputStartedCreatesAPendingToolPart() throws {
+        let event = try #require(translate(Self.toolInputStarted))
+        #expect(event.payload.type == "message.part.updated")
+        let part = try #require(part(event))
+        #expect(part["type"] as? String == "tool")
+        #expect(part["id"] as? String == "msg_1-tool-call_1")
+        #expect(part["messageID"] as? String == "msg_1")
+        #expect(part["sessionID"] as? String == "ses_1")
+        #expect(part["tool"] as? String == "shell")
+        #expect(part["callID"] as? String == "call_1")
+        #expect(partState(event)?["status"] as? String == "pending")
+    }
+
+    @Test func toolCalledRunsTheCallAndCarriesTheInput() throws {
+        var translator = V2EventTranslator()
+        _ = translate(Self.toolInputStarted, with: &translator)
+        _ = translate(Self.toolInputEnded, with: &translator)
+        let event = try #require(translate(Self.toolCalled, with: &translator))
+        #expect(partState(event)?["status"] as? String == "running")
+        let input = try #require(partState(event)?["input"] as? [String: Any])
+        #expect(input["command"] as? String == "echo hi")
+        // The name the first frame delivered is carried forward.
+        #expect(part(event)?["tool"] as? String == "shell")
+    }
+
+    @Test func toolInputEndedParsesTheArgumentsOnItsOwn() throws {
+        var translator = V2EventTranslator()
+        _ = translate(Self.toolInputStarted, with: &translator)
+        let event = try #require(translate(Self.toolInputEnded, with: &translator))
+        let input = try #require(partState(event)?["input"] as? [String: Any])
+        #expect(input["command"] as? String == "echo hi")
+        #expect(partState(event)?["status"] as? String == "pending")
+    }
+
+    @Test func toolProgressKeepsTheCallRunningAndAddsItsMetadata() throws {
+        var translator = V2EventTranslator()
+        _ = translate(Self.toolCalled, with: &translator)
+        let event = try #require(translate(Self.toolProgress, with: &translator))
+        #expect(partState(event)?["status"] as? String == "running")
+        let metadata = try #require(partState(event)?["metadata"] as? [String: Any])
+        #expect(metadata["shellID"] as? String == "sh_1")
+    }
+
+    @Test func toolSuccessCompletesTheCallWithItsOutput() throws {
+        var translator = V2EventTranslator()
+        _ = translate(Self.toolCalled, with: &translator)
+        let event = try #require(translate(Self.toolSuccess, with: &translator))
+        #expect(partState(event)?["status"] as? String == "completed")
+        #expect(partState(event)?["output"] as? String == "hi\n")
+        #expect(part(event)?["id"] as? String == "msg_1-tool-call_1")
+    }
+
+    @Test func toolFailedEndsTheCallWithItsError() throws {
+        var translator = V2EventTranslator()
+        _ = translate(Self.toolCalled, with: &translator)
+        let event = try #require(translate(Self.toolFailed, with: &translator))
+        #expect(partState(event)?["status"] as? String == "error")
+        #expect(partState(event)?["error"] as? String == "File not found")
+    }
+
+    @Test func toolFramesThatArriveWithoutAnEarlierFrameStillRender() throws {
+        // A success frame can arrive without the start frame (the app
+        // reconnected mid-call).
+        let event = try #require(translate(Self.toolSuccess))
+        #expect(part(event)?["id"] as? String == "msg_1-tool-call_1")
+        #expect(partState(event)?["status"] as? String == "completed")
+    }
+
+    @Test func toolPartIDIsTheSameOnTheStreamAndInTheSnapshot() throws {
+        // The live part and the REST part must share the id, or one call
+        // renders as two cards.
+        let event = try #require(translate(Self.toolInputStarted))
+        let streamID = try #require(part(event)?["id"] as? String)
+        #expect(streamID == V2EventTranslator.toolPartID(messageID: "msg_1", callID: "call_1"))
     }
 }

@@ -1086,6 +1086,42 @@ struct MessageReconciliationTests {
         #expect(!sessionState.messageStore.isPendingOptimisticMessage(deletedSourceID ?? ""))
         #expect(sessionState.messageStore.failedSendReasonsByID.isEmpty)
     }
+
+    /// The server publishes a tool part when the call starts. A snapshot
+    /// taken before that does not know the call, and the running card must
+    /// survive the reload.
+    @Test func reloadKeepsTheToolCallTheServerHasNotPublishedYet() throws {
+        let store = MessageStore(defaults: UserDefaults(suiteName: "merge-\(UUID().uuidString)")!)
+        store.messages = [MessageWithParts(
+            info: assistantMessage(id: "msg_1", sessionID: "s1"),
+            parts: [toolPart(id: "msg_1-tool-call_1", messageID: "msg_1", sessionID: "s1", status: "running")]
+        )]
+
+        let snapshot = [row(id: "msg_0", sessionID: "s1", text: "hello")]
+        let merged = store.mergeInFlightToolCalls(into: snapshot)
+        #expect(merged.count == 2)
+        #expect(merged.last?.info.id == "msg_1")
+        #expect(merged.last?.parts.first?.stateDisplay == "running")
+
+        // A finished call is the server's business again.
+        store.messages = [MessageWithParts(
+            info: assistantMessage(id: "msg_1", sessionID: "s1"),
+            parts: [toolPart(id: "msg_1-tool-call_1", messageID: "msg_1", sessionID: "s1", status: "completed")]
+        )]
+        #expect(store.mergeInFlightToolCalls(into: snapshot).count == 1)
+    }
+
+    /// A snapshot that already knows the call does not get a second card.
+    @Test func reloadDoesNotDuplicateAKnownToolCall() throws {
+        let store = MessageStore(defaults: UserDefaults(suiteName: "merge-\(UUID().uuidString)")!)
+        let part = toolPart(id: "msg_1-tool-call_1", messageID: "msg_1", sessionID: "s1", status: "running")
+        store.messages = [MessageWithParts(info: assistantMessage(id: "msg_1", sessionID: "s1"), parts: [part])]
+
+        let snapshot = [MessageWithParts(info: assistantMessage(id: "msg_1", sessionID: "s1"), parts: [part])]
+        let merged = store.mergeInFlightToolCalls(into: snapshot)
+        #expect(merged.count == 1)
+        #expect(merged.first?.parts.count == 1)
+    }
 }
 
 private func row(id: String, sessionID: String, text: String, completed: Int? = 1) -> MessageWithParts {
@@ -1121,6 +1157,40 @@ private func row(id: String, sessionID: String, text: String, completed: Int? = 
 
 private func notFound() -> APIError {
     APIError.httpError(statusCode: 404, data: Data())
+}
+
+private func assistantMessage(id: String, sessionID: String) -> Message {
+    Message(
+        id: id,
+        sessionID: sessionID,
+        role: "assistant",
+        parentID: nil,
+        providerID: nil,
+        modelID: nil,
+        model: nil,
+        error: nil,
+        time: .init(created: 110_000, completed: nil),
+        finish: nil,
+        tokens: nil,
+        cost: nil
+    )
+}
+
+private func toolPart(id: String, messageID: String, sessionID: String, status: String) -> Part {
+    let json = "{\"status\":\"\(status)\"}"
+    let state = try? JSONDecoder().decode(PartStateBridge.self, from: Data(json.utf8))
+    return Part(
+        id: id,
+        messageID: messageID,
+        sessionID: sessionID,
+        type: "tool",
+        text: nil,
+        tool: "shell",
+        callID: "call_1",
+        state: state,
+        metadata: nil,
+        files: nil
+    )
 }
 
 @MainActor

@@ -336,6 +336,51 @@ final class MessageStore {
         }
     }
 
+    /// A tool call the server has not finished yet: the arguments are still
+    /// streaming (`pending`) or the call is executing (`running`).
+    private static func isInFlightToolCall(_ part: Part) -> Bool {
+        guard part.isTool else { return false }
+        switch part.stateDisplay?.lowercased() {
+        case "pending", "running":
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Merges the live in-flight tool calls into a server snapshot.
+    ///
+    /// A reload replaces the transcript with the server's view. The server
+    /// publishes a tool part when the call starts, so a snapshot taken before
+    /// that does not know the call yet — and the card the phone is showing
+    /// would vanish in the middle of a turn. The live call is kept until the
+    /// server reports it.
+    func mergeInFlightToolCalls(into snapshot: [MessageWithParts]) -> [MessageWithParts] {
+        var livePartsByMessage: [String: [Part]] = [:]
+        var liveRowsByMessage: [String: MessageWithParts] = [:]
+        for row in messages {
+            let inFlight = row.parts.filter { Self.isInFlightToolCall($0) }
+            guard !inFlight.isEmpty else { continue }
+            livePartsByMessage[row.info.id] = inFlight
+            liveRowsByMessage[row.info.id] = row
+        }
+        guard !livePartsByMessage.isEmpty else { return snapshot }
+
+        var merged = snapshot
+        for (messageID, parts) in livePartsByMessage {
+            if let index = merged.firstIndex(where: { $0.info.id == messageID }) {
+                let known = Set(merged[index].parts.map(\.id))
+                let missing = parts.filter { !known.contains($0.id) }
+                guard !missing.isEmpty else { continue }
+                merged[index].parts.append(contentsOf: missing)
+            } else if let row = liveRowsByMessage[messageID] {
+                // The server has not published the row yet: keep the live one.
+                merged.append(row)
+            }
+        }
+        return merged
+    }
+
     /// Applies a full part payload in place (SSE data path): replace-or-insert
     /// the part inside its message row, creating a shell row for
     /// assistant-only part types when the row is not loaded yet.
