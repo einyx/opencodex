@@ -293,3 +293,44 @@ Apple-to-iPhone connection, which is still "on the user's own devices".
 **Lesson**: before wiring a feature to a hosted service, check what the user's own
 machine already provides — a hosted service adds a credential, a privacy disclosure
 and a third-party failure mode, and the local path often needs none of the three.
+
+---
+
+## 23. App Store Connect: A Version in Review Cannot Change Its Build — and the Cancel Route Is Not Where You Expect It
+
+**Scenario**: shipping a new build of an app version that is already in the review
+queue. The build has to change (the shipped build is not the one that was reviewed),
+but App Store Connect refused every obvious route.
+
+**Anti-pattern**: reaching for `DELETE /v1/reviewSubmissions/{id}` to cancel the
+submission. The API answers `403` with "the resource 'reviewSubmissions' does not
+allow 'DELETE'. Allowed operations are: CREATE, GET_COLLECTION, GET_INSTANCE,
+UPDATE" — the review submission is not deletable at all. The same applies to
+`POST /v1/appStoreVersionSubmissions` (403: "does not allow 'CREATE'") and to
+`PATCH /v1/appStoreVersions/{id}/relationships/appStoreVersionSubmission` (403: "does
+not allow 'UPDATE'").
+
+**Correct approach**: the cancellation route is keyed by the *version*, not by the
+submission: `DELETE /v1/appStoreVersionSubmissions/{appStoreVersionId}`. That clears
+the version's submission, the version returns to `READY_FOR_REVIEW`, and only then can
+the build be swapped (`PATCH /v1/appStoreVersions/{id}/relationships/build`). The
+submission itself is then rebuilt in three steps, and every step matters:
+
+1. `POST /v1/reviewSubmissions` with **both** `attributes.platform` (`"IOS"`) and the
+   `app` relationship. A submission created without the platform attribute comes back
+   with `"platform": null`, and Apple then refuses every later step with "Resource is
+   not in submittable state" / "not in updatable state" — and since review submissions
+   cannot be deleted, that shell is an orphan for good.
+2. `POST /v1/reviewSubmissionItems` with the `reviewSubmission` and the
+   `appStoreVersion` relationships. This is what moves the version from
+   `PREPARE_FOR_SUBMISSION` to `READY_FOR_REVIEW`.
+3. `PATCH /v1/reviewSubmissions/{id}` with `{"attributes": {"submitted": true}}`. This
+   is the only step that actually sends the version to App Review: the submission gets
+   a `submittedDate` and moves to `WAITING_FOR_REVIEW`.
+
+**Lesson**: the review-submission API is not a CRUD resource — it is a three-step
+workflow with a point of no return, and the one attribute that cannot be patched
+afterwards (`platform`) has to be set at creation. Measure the whole chain once
+(`reviewSubmissions` → `reviewSubmissionItems` → `submitted`) and keep the exact
+bodies; a single missing field turns into an orphan that the API refuses to clean
+up.
