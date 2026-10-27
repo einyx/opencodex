@@ -158,7 +158,10 @@ sandbox parameter**; the service resolves the tenant from the access token.
   The app may retry after a timeout and must not end up with two sandboxes.
   An `Idempotency-Key` header is honoured for the same reason.
 - `token` is returned **only** here and on `rotate`. It is stored hashed by
-  the service; the service can never show it again.
+  the service; the service can never show it again. **A repeat provisioning
+  does not hand the token out again** — a client that lost it recovers with
+  `POST /v1/sandboxes/{id}/rotate`, which issues a new one and kills the old
+  one at the same time.
 - `ref` is public but unguessable, and it is *not* the secret. The URL
   carries `ref`; the credential travels in the `Authorization` header. A
   leaked URL without the token is worthless.
@@ -168,9 +171,10 @@ sandbox parameter**; the service resolves the tenant from the access token.
 - `rotate` issues a new token for the same sandbox and invalidates the
   previous one immediately. Both are never valid at the same time.
 - `DELETE` is a **hard** teardown: it revokes the gateway credential, denies
-  the proxy, destroys the sandbox and its volume, then deletes the rows.
-  Workspace data is gone. Deleting the *account* is a different, softer
-  operation (§Account lifecycle).
+  the proxy, destroys the sandbox and its volume, and deletes the workspace
+  and token rows. The sandbox row is kept with `destroyed_at` set, because
+  the audit trail outlives the machine. Workspace data is gone. Deleting the
+  *account* is a different, softer operation (§Account lifecycle).
 
 ### Workspace
 
@@ -328,6 +332,8 @@ Where each piece of this contract lands in **this** repository:
 - **Do not treat `state: "starting"` as an error**, and do not re-provision
   in a loop — provisioning is idempotent and the sandbox may take a few
   seconds to serve.
+- **Do not expect a token from a repeat provisioning.** It is returned once.
+  If the app lost it, rotate; do not assume the service can re-show it.
 - **Do not retry `allowance_exhausted`.**
 - **Do not hardcode the model list.** The catalog comes from the workspace
   server; the entitlement says what may be *spent* on. Both are needed and
