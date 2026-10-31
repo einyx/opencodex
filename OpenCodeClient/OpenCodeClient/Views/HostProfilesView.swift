@@ -60,18 +60,16 @@ struct HostProfilesView: View {
 
     var body: some View {
         Form {
-            Section {
-                if let current = state.currentHostProfile {
-                    CurrentHostCard(state: state, profile: current)
-                        .accessibilityIdentifier("hosts-current-card")
+            if state.currentHostProfile != nil {
+                // Connection status only — the host's name and URL already
+                // appear once in the Hosts list below, on the selected row.
+                Section(L10n.t(.settingsConnection)) {
+                    CurrentHostCard(state: state, profile: state.currentHostProfile!)
+                        .accessibilityIdentifier("hosts-connection-card")
                 }
-            } header: {
-                Text(L10n.t(.hostCurrent))
-            } footer: {
-                Text(L10n.t(.hostCurrentFooter))
             }
 
-            Section(L10n.t(.hostHosts)) {
+            Section {
                 ForEach(state.hostProfiles) { profile in
                     NavigationLink {
                         HostProfileDetailView(state: state, profileID: profile.id) { selected in
@@ -134,6 +132,10 @@ struct HostProfilesView: View {
                     Label(L10n.t(.hostAdd), systemImage: "plus.circle")
                 }
                 .accessibilityIdentifier("hosts-add-host")
+            } header: {
+                Text(L10n.t(.hostHosts))
+            } footer: {
+                Text(L10n.t(.hostCurrentFooter))
             }
 
             #if !os(visionOS)
@@ -272,39 +274,36 @@ private struct CurrentHostCard: View {
     let profile: HostProfile
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let status = hostCardStatus(
+            profileID: profile.id,
+            diagnostic: state.connectionDiagnostic,
+            loadError: state.hostProfileLoadError,
+            credentialError: state.hostCredentialError,
+            connectionError: state.connectionError
+        )
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(profile.displayName)
-                    .font(.headline)
-                Spacer()
-                Label(profile.transport.label, systemImage: profile.transport == .sshTunnel ? "terminal" : "network")
-                    .font(.caption)
-                    .foregroundStyle(DesignColors.Brand.primary)
-            }
-            Text(profile.connectionSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            HStack {
-                if state.isConnected {
-                    Label(L10n.t(.settingsConnected), systemImage: "checkmark.circle")
-                } else {
-                    Label(L10n.t(.settingsDisconnected), systemImage: "xmark.circle")
+                // One status signal per card: when a diagnostic summary is
+                // visible below, its phase row already states connected /
+                // disconnected, so the static row would repeat it three ways.
+                if status.diagnostic == nil {
+                    Group {
+                        if state.isConnected {
+                            Label(L10n.t(.settingsConnected), systemImage: "checkmark.circle")
+                        } else {
+                            Label(L10n.t(.settingsDisconnected), systemImage: "xmark.circle")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button(L10n.t(.settingsTestConnection)) {
                     Task { await state.refresh() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(DesignColors.Brand.primary)
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
-            let status = hostCardStatus(
-                profileID: profile.id,
-                diagnostic: state.connectionDiagnostic,
-                loadError: state.hostProfileLoadError,
-                credentialError: state.hostCredentialError,
-                connectionError: state.connectionError
-            )
             if let diagnostic = status.diagnostic {
                 DiagnosticSummaryView(diagnostic: diagnostic)
             }
