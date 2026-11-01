@@ -27,6 +27,11 @@ struct MessageRowView: View {
     @Environment(\.effectiveLayout) private var effectiveLayout
     @Environment(\.colorScheme) private var colorScheme
     @State private var showsTextSelection = false
+    /// The messages whose reasoning the reader opened by hand.
+    ///
+    /// The thinking pill and the thinking card are two views for one piece of
+    /// reasoning, so the choice to keep it open cannot live in either of them.
+    @State private var openedThinkingMessageIDs: Set<String> = []
 
     // iPhone packs file-operation cards two-up to keep information density
     // high; iPad has room for a 3-up grid. Thinking and tool-call tiles are
@@ -904,10 +909,31 @@ struct MessageRowView: View {
     }
 
     private func thinkingCard(_ part: Part) -> some View {
-        ThinkingCard(isStreaming: isPartStreaming(part)) {
+        ThinkingCard(
+            isStreaming: isPartStreaming(part),
+            openedByHand: openedThinkingMessageIDs.contains(part.messageID)
+        ) {
             markdownText(part.text ?? "", isUser: false, forcingMarkdown: true,
                          isStreaming: isPartStreaming(part))
         }
+    }
+
+    /// Keep the reasoning of a message open, or let it follow the turn again.
+    ///
+    /// The pill and the thinking card are two views for one piece of
+    /// reasoning, so the choice cannot live in either of them: it has to
+    /// outlive the swap between the two.
+    private func toggleThinkingOpen(_ messageID: String) {
+        if openedThinkingMessageIDs.contains(messageID) {
+            openedThinkingMessageIDs.remove(messageID)
+        } else {
+            openedThinkingMessageIDs.insert(messageID)
+        }
+    }
+
+    /// The message the thinking pill stands for: the running step's.
+    private var thinkingPlaceholderMessageID: String {
+        turnPresentation.messages.last?.info.id ?? ""
     }
 
     /// The turn that owns this row is still producing output.
@@ -960,12 +986,18 @@ struct MessageRowView: View {
             // The reasoning part exists but carries no words yet: the model
             // is thinking. The pill holds the slot the prose will fill.
             if Self.normalizedText(part.text).isEmpty {
-                ThinkingPlaceholderPill()
+                ThinkingPlaceholderPill(
+                    isOpen: openedThinkingMessageIDs.contains(part.messageID),
+                    onToggle: { toggleThinkingOpen(part.messageID) }
+                )
             } else {
                 thinkingCard(part)
             }
         case .thinkingPlaceholder:
-            ThinkingPlaceholderPill()
+            ThinkingPlaceholderPill(
+                isOpen: openedThinkingMessageIDs.contains(thinkingPlaceholderMessageID),
+                onToggle: { toggleThinkingOpen(thinkingPlaceholderMessageID) }
+            )
         case .fileCard(let part):
             FileCardView(
                 part: part,
@@ -1013,34 +1045,51 @@ struct MessageRowView: View {
 /// reasoning yet.
 ///
 /// It is the same chip the thinking card collapses into, so the transcript
-/// shows one element that fills in rather than two that swap.
+/// shows one element that fills in rather than two that swap. It is a
+/// disclosure: the reader can ask for the reasoning to stay open before the
+/// words arrive, and the choice outlives the swap into the card.
 private struct ThinkingPlaceholderPill: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPulsing = false
 
+    /// Whether the reader asked for the reasoning to stay open.
+    let isOpen: Bool
+    /// Opens or closes the reasoning that is coming.
+    let onToggle: () -> Void
+
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "brain.head.profile")
-                .font(DesignTypography.micro)
-                .scaleEffect(isPulsing ? 1.08 : 1)
-            Text(L10n.t(.chatThinkingCard))
-                .fontWeight(.medium)
+        Button {
+            onToggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "brain.head.profile")
+                    .font(DesignTypography.micro)
+                    .scaleEffect(isPulsing ? 1.08 : 1)
+                Text(L10n.t(.chatThinkingCard))
+                    .fontWeight(.medium)
+                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                    .font(DesignTypography.micro)
+                    .foregroundStyle(DesignColors.Neutral.textTertiary)
+            }
+            .font(DesignTypography.micro)
+            .foregroundStyle(DesignColors.Brand.primary)
+            .padding(.horizontal, DesignSpacing.chipHorizontal)
+            .padding(.vertical, DesignSpacing.chipVertical)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(DesignColors.surfaceFillColor(for: colorScheme))
+            )
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .font(DesignTypography.micro)
-        .foregroundStyle(DesignColors.Brand.primary)
-        .padding(.horizontal, DesignSpacing.chipHorizontal)
-        .padding(.vertical, DesignSpacing.chipVertical)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(DesignColors.surfaceFillColor(for: colorScheme))
-        )
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
-        .animation(reduceMotion ? nil : DesignAnimation.breathing, value: isPulsing)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.t(.chatThinkingCard))
         .accessibilityIdentifier("message-thinking-placeholder")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityValue(L10n.t(isOpen ? .expanded : .collapsed))
+        .animation(reduceMotion ? nil : DesignAnimation.breathing, value: isPulsing)
         .onAppear { isPulsing = true }
     }
 }
@@ -1059,10 +1108,14 @@ private struct ThinkingCard<Content: View>: View {
     /// opens itself so the reasoning is readable as it streams, and the user
     /// can still collapse it.
     private let isStreaming: Bool
+    /// The reader opened this reasoning by hand — through the pill, before the
+    /// words arrived. The choice has to survive the swap between the two.
+    private let openedByHand: Bool
     private let content: Content
 
-    init(isStreaming: Bool = false, @ViewBuilder content: () -> Content) {
+    init(isStreaming: Bool = false, openedByHand: Bool = false, @ViewBuilder content: () -> Content) {
         self.isStreaming = isStreaming
+        self.openedByHand = openedByHand
         self.content = content()
     }
 
@@ -1118,6 +1171,13 @@ private struct ThinkingCard<Content: View>: View {
             }
         }
         .onAppear {
+            if openedByHand {
+                // The reader opened this reasoning before the words arrived:
+                // it comes open, and it stays open when the turn ends.
+                hasManualChoice = true
+                expanded = true
+                return
+            }
             guard !hasManualChoice else { return }
             expanded = isStreaming
         }

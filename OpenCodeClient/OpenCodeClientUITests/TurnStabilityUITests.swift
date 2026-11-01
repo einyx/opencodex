@@ -61,6 +61,26 @@ final class TurnStabilityUITests: XCTestCase {
     }
 
     @MainActor
+    func testOpeningTheThinkingPillKeepsTheReasoningOpenWhenTheTurnEnds() {
+        let app = launch(mode: "thinking")
+
+        // The reader opens the pill while the model is still thinking: the
+        // reasoning that arrives later belongs under an open card.
+        let pill = app.descendants(matching: .any)["message-thinking-placeholder"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 12))
+        pill.tap()
+
+        app.buttons["w09-turn-fill-reasoning"].tap()
+        let card = app.descendants(matching: .any)["message-thinking-card"]
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+
+        // The turn ends. The card would close itself then, but the reader
+        // asked for the reasoning to stay open.
+        app.buttons["w09-turn-complete"].tap()
+        XCTAssertTrue(label("W09_THINK_WORDS", in: app).waitForExistence(timeout: 6))
+    }
+
+    @MainActor
     func testLaterStepErrorSpeechAndFooterAreVisible() {
         let app = launch(mode: "metadata")
         XCTAssertTrue(label("W09_SPEECH_M1", in: app).waitForExistence(timeout: 12))
