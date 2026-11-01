@@ -556,7 +556,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClient;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.prysm.opencode;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=xros*]" = com.prysm.opencode;
@@ -603,7 +603,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClient;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.prysm.opencode;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=xros*]" = com.prysm.opencode;
@@ -631,7 +631,7 @@
 				DEVELOPMENT_TEAM = 9DBH2A7KB8;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClientTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -653,7 +653,7 @@
 				DEVELOPMENT_TEAM = 9DBH2A7KB8;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClientTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -673,7 +673,7 @@
 				CURRENT_PROJECT_VERSION = 48;
 				DEVELOPMENT_TEAM = 9DBH2A7KB8;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClientUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -693,7 +693,7 @@
 				CURRENT_PROJECT_VERSION = 48;
 				DEVELOPMENT_TEAM = 9DBH2A7KB8;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClientUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -720,7 +720,7 @@
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grapeot.OpenCodeClient;
 				"INFOPLIST_KEY_WKCompanionAppBundleIdentifier[sdk=watchos*]" = com.prysm.opencode;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClient.watchkitapp;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=watchos*]" = com.prysm.opencode.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -751,7 +751,7 @@
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grapeot.OpenCodeClient;
 				"INFOPLIST_KEY_WKCompanionAppBundleIdentifier[sdk=watchos*]" = com.prysm.opencode;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grapeot.OpenCodeClient.watchkitapp;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=watchos*]" = com.prysm.opencode.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
