@@ -15,7 +15,10 @@ struct FilesTabView: View {
             FileTreeView(state: state)
                 .fileSearchQueryHandlers(state: state)
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    FilesChangesSection(state: state)
+                    VStack(spacing: 0) {
+                        FilesProjectMemorySection(state: state)
+                        FilesChangesSection(state: state)
+                    }
                 }
             .navigationTitle(L10n.t(.navFiles))
             .navigationBarTitleDisplayMode(.inline)
@@ -128,6 +131,73 @@ private struct FilesChangesSection: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("files-changes-section")
         }
+    }
+}
+
+/// The Files tab's "Project Memory" section: the instruction file the server injects into
+/// every agent turn.
+///
+/// It is a project artifact, not a transient one, so it stays on screen: the user has to be able
+/// to see that their project has memory at all.
+private struct FilesProjectMemorySection: View {
+    @Bindable var state: AppState
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        NavigationLink {
+            ProjectMemoryView(state: state)
+        } label: {
+            HStack(spacing: DesignSpacing.sm) {
+                Image(systemName: "brain")
+                    .foregroundStyle(DesignColors.Brand.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t(.projectMemoryTitle))
+                        .font(DesignTypography.bodyProminent)
+                        .foregroundStyle(DesignColors.Brand.primary)
+                    Text(subtitle)
+                        .font(DesignTypography.microMono)
+                        .foregroundStyle(DesignColors.Neutral.textSecondary)
+                }
+                Spacer(minLength: DesignSpacing.sm)
+                Image(systemName: "chevron.right")
+                    .font(DesignTypography.micro)
+                    .foregroundStyle(DesignColors.Neutral.textTertiary)
+            }
+            .padding(.horizontal, DesignSpacing.lg)
+            .padding(.vertical, DesignSpacing.md)
+            .background(DesignColors.Brand.surface(for: colorScheme))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("files-project-memory-section")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(L10n.t(.projectMemoryTitle)). \(subtitle)")
+        .accessibilityHint(L10n.t(.projectMemoryExplains))
+        .task { await state.loadProjectMemoryIfNeeded() }
+    }
+
+    /// The one-line summary.
+    ///
+    /// A read in flight keeps the last known summary: flipping to a generic line on every
+    /// refresh would make the section flicker for no reason.
+    private var subtitle: String {
+        let model = state.projectMemory
+        switch model.content {
+        case .notLoaded, .loading:
+            return model.hasLoaded
+                ? summary(for: model)
+                : L10n.t(.projectMemorySectionSubtitle)
+        case .absent:
+            return L10n.t(.projectMemoryAbsent)
+        case .unreadable:
+            return L10n.t(.projectMemorySectionSubtitle)
+        case .text(let text):
+            return L10n.t(.projectMemoryPresent, L10n.t(.projectMemoryFileName), ProjectMemoryModel.lineCount(of: text))
+        }
+    }
+
+    private func summary(for model: ProjectMemoryModel) -> String {
+        guard let text = model.currentText else { return L10n.t(.projectMemorySectionSubtitle) }
+        return L10n.t(.projectMemoryPresent, L10n.t(.projectMemoryFileName), ProjectMemoryModel.lineCount(of: text))
     }
 }
 

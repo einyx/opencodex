@@ -30,6 +30,7 @@ enum UITestFixtures {
             || FileContentReuseFixture.isActive
             || TurnStabilityFixture.isActive
             || Tier4OfflineFixture.isActive
+            || ProjectMemoryFixture.isActive
     }
 
     static var hasUITestWebPreviewModeFixture: Bool {
@@ -215,6 +216,12 @@ enum UITestFixtures {
         if FileSearchFixture.isActive {
             let state = FileSearchFixture.makeAppState()
             FileSearchFixture.apply(to: state)
+            return state
+        }
+
+        if ProjectMemoryFixture.isActive {
+            let state = ProjectMemoryFixture.makeAppState()
+            ProjectMemoryFixture.apply(to: state)
             return state
         }
 

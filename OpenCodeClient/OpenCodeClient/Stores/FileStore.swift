@@ -37,6 +37,8 @@ final class FileStore {
     var fileSearchError: String?
     var fileSearchOwner: HostRequestSnapshot?
     var fileSearchDirectory: String?
+    /// The project's instruction file — the memory the server injects into every turn.
+    var projectMemory: ProjectMemoryModel = ProjectMemoryModel()
 }
 
 struct FileChildrenScope: Equatable {

@@ -218,6 +218,14 @@ actor MockAPIClient: APIClientProtocol {
     var fileListResults: [String: [FileNode]] = [:]
     var fileListRequests: [(path: String, directory: String?)] = []
     var fileContentRequests: [(path: String, directory: String?)] = []
+    /// The content every file read returns. `nil` means "the default empty text".
+    var fileContentResult: FileContent?
+    /// The content a read from a specific directory returns, when set.
+    var fileContentResultsByDirectory: [String: FileContent] = [:]
+    /// The directories whose read answers 404.
+    var fileContentMissingDirectories: Set<String> = []
+    /// The error every file read throws, when set.
+    var fileContentError: Error?
     var abortSessionIDs: [String] = []
     var indicatorStatuses: [String: SessionStatus] = [:]
     var indicatorPermissions: [APIClient.PermissionRequest] = []
@@ -575,7 +583,25 @@ actor MockAPIClient: APIClientProtocol {
     }
     func fileContent(path: String, directory: String?) async throws -> FileContent {
         fileContentRequests.append((path, directory))
-        return FileContent(type: "text", content: "")
+        if let fileContentError { throw fileContentError }
+        if let directory, fileContentMissingDirectories.contains(directory) {
+            throw APIError.httpError(statusCode: 404, data: Data())
+        }
+        if let directory, let specific = fileContentResultsByDirectory[directory] { return specific }
+        return fileContentResult ?? FileContent(type: "text", content: "")
+    }
+    /// Configure what every file read answers.
+    func setFileContent(result: FileContent? = nil, error: Error? = nil) {
+        fileContentResult = result
+        fileContentError = error
+    }
+    /// Configure what a read from one directory answers.
+    func setFileContent(_ result: FileContent, forDirectory directory: String) {
+        fileContentResultsByDirectory[directory] = result
+    }
+    /// Make a read from one directory answer 404.
+    func setFileContentMissing(forDirectory directory: String) {
+        fileContentMissingDirectories.insert(directory)
     }
     func findFile(query: String, limit: Int) async throws -> [String] { [] }
     func fileStatus() async throws -> [FileStatusEntry] { [] }

@@ -177,5 +177,8 @@ extension AppState {
         if !fileTreeRoot.isEmpty {
             await loadFileTree()
         }
+        // The instruction file is a file like any other: when the agent writes
+        // it, the Project Memory panel has to show the new version.
+        await refreshProjectMemoryIfChanged()
     }
 }

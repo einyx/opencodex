@@ -426,6 +426,30 @@ enum L10n {
         case changesFileAccessibility
         case changesNoDiffForFile
 
+        case projectMemoryTitle
+        case projectMemorySectionSubtitle
+        case projectMemoryExplains
+        case projectMemoryPresent
+        case projectMemoryAbsent
+        case projectMemoryUnreadable
+        case projectMemoryLoading
+        case projectMemoryImprove
+        case projectMemoryImproveBusy
+        case projectMemoryRestore
+        case projectMemoryReviewTitle
+        case projectMemoryChanged
+        case projectMemoryDeleted
+        case projectMemoryCreated
+        case projectMemoryWorking
+        case projectMemoryRestoreNote
+        case projectMemoryEmptyContent
+        case projectMemoryFileName
+        case projectMemoryServerDefault
+        case projectMemoryNotText
+        case projectMemoryBackToFile
+        case projectMemoryKeep
+        case projectMemoryActionFailed
+
         case contextUsageHelp
         case contextUsageClose
         case contextUsageTitle
@@ -953,6 +977,29 @@ enum L10n {
         Key.changesAccessibilityLabel.rawValue: "%d files changed, %d lines added, %d lines removed",
         Key.changesFileAccessibility.rawValue: "%@, %d lines added, %d lines removed",
         Key.changesNoDiffForFile.rawValue: "No diff for this file",
+        Key.projectMemoryTitle.rawValue: "Project Memory",
+        Key.projectMemorySectionSubtitle.rawValue: "Injected into every agent turn",
+        Key.projectMemoryExplains.rawValue: "This file is injected into every agent turn. It is how the agent remembers your project between sessions.",
+        Key.projectMemoryPresent.rawValue: "%@ · %d lines",
+        Key.projectMemoryAbsent.rawValue: "No project memory yet",
+        Key.projectMemoryUnreadable.rawValue: "Could not read %@",
+        Key.projectMemoryLoading.rawValue: "Reading project memory…",
+        Key.projectMemoryImprove.rawValue: "Improve with the agent",
+        Key.projectMemoryImproveBusy.rawValue: "The agent is busy",
+        Key.projectMemoryRestore.rawValue: "Restore previous version",
+        Key.projectMemoryReviewTitle.rawValue: "Review the change",
+        Key.projectMemoryChanged.rawValue: "The agent changed this file.",
+        Key.projectMemoryDeleted.rawValue: "The agent deleted this file.",
+        Key.projectMemoryCreated.rawValue: "The agent created this file.",
+        Key.projectMemoryWorking.rawValue: "The agent is updating project memory…",
+        Key.projectMemoryRestoreNote.rawValue: "The agent restores the file by rewriting it, so the result may differ slightly from the version you accepted.",
+        Key.projectMemoryEmptyContent.rawValue: "This file is empty.",
+        Key.projectMemoryFileName.rawValue: "AGENTS.md",
+        Key.projectMemoryServerDefault.rawValue: "the server's default directory",
+        Key.projectMemoryNotText.rawValue: "This file is not text.",
+        Key.projectMemoryBackToFile.rawValue: "Back to the file",
+        Key.projectMemoryKeep.rawValue: "Keep this version",
+        Key.projectMemoryActionFailed.rawValue: "The agent could not be asked. Check the connection and try again.",
 
         Key.permissionAllowOnce.rawValue: "Allow Once",
         Key.permissionAllowAlways.rawValue: "Allow Always",
@@ -1549,6 +1596,29 @@ enum L10n {
         Key.changesAccessibilityLabel.rawValue: "%d 个文件已变更，新增 %d 行，删除 %d 行",
         Key.changesFileAccessibility.rawValue: "%@，新增 %d 行，删除 %d 行",
         Key.changesNoDiffForFile.rawValue: "该文件没有差异内容",
+        Key.projectMemoryTitle.rawValue: "项目记忆",
+        Key.projectMemorySectionSubtitle.rawValue: "注入到每一次 Agent 回合",
+        Key.projectMemoryExplains.rawValue: "该文件会注入到每一次 Agent 回合，它是 Agent 在会话之间记住你的项目的方式。",
+        Key.projectMemoryPresent.rawValue: "%@ · %d 行",
+        Key.projectMemoryAbsent.rawValue: "尚未建立项目记忆",
+        Key.projectMemoryUnreadable.rawValue: "无法读取 %@",
+        Key.projectMemoryLoading.rawValue: "正在读取项目记忆…",
+        Key.projectMemoryImprove.rawValue: "让 Agent 完善",
+        Key.projectMemoryImproveBusy.rawValue: "Agent 正忙",
+        Key.projectMemoryRestore.rawValue: "恢复上一版本",
+        Key.projectMemoryReviewTitle.rawValue: "审阅变更",
+        Key.projectMemoryChanged.rawValue: "Agent 修改了该文件。",
+        Key.projectMemoryDeleted.rawValue: "Agent 删除了该文件。",
+        Key.projectMemoryCreated.rawValue: "Agent 创建了该文件。",
+        Key.projectMemoryWorking.rawValue: "Agent 正在更新项目记忆…",
+        Key.projectMemoryRestoreNote.rawValue: "Agent 通过重写文件来恢复，结果可能与你接受的版本略有出入。",
+        Key.projectMemoryEmptyContent.rawValue: "该文件为空。",
+        Key.projectMemoryFileName.rawValue: "AGENTS.md",
+        Key.projectMemoryServerDefault.rawValue: "服务器默认目录",
+        Key.projectMemoryNotText.rawValue: "该文件不是文本。",
+        Key.projectMemoryBackToFile.rawValue: "返回文件",
+        Key.projectMemoryKeep.rawValue: "保留此版本",
+        Key.projectMemoryActionFailed.rawValue: "无法向 Agent 发出请求，请检查连接后重试。",
 
         Key.contextUsageHelp.rawValue: "上下文用量",
         Key.contextUsageClose.rawValue: "关闭",
