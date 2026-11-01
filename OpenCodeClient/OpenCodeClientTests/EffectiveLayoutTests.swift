@@ -498,7 +498,10 @@ struct EffectiveLayoutTests {
         coordinator.beginPaste = {
             let captured = selection
             return { parts in
-                let addition = ComposerDraftMerge.joinedPaste(parts)
+                let addition = ComposerDraftMerge.joinedPaste(parts.compactMap { payload in
+                    if case .text(let text) = payload { return text }
+                    return nil
+                })
                 merged = ComposerDraftMerge.inserting(
                     draft: "ab",
                     addition: addition,
@@ -858,15 +861,41 @@ struct ComposerOwnershipTests {
     @MainActor
     @Test func pasteControlDecodesStringProvider() async {
         let provider = NSItemProvider(object: "FOCUS_VOICE_PASTE_SENTINEL" as NSString)
-        let strings = await ComposerPastePayload.strings(from: [provider])
-        #expect(strings == ["FOCUS_VOICE_PASTE_SENTINEL"])
+        let payloads = await ComposerPastePayload.payloads(from: [provider])
+        #expect(payloads == [.text("FOCUS_VOICE_PASTE_SENTINEL")])
+    }
+
+    /// A screenshot on the clipboard is an image, not text: the composer has to
+    /// be able to take it.
+    @MainActor
+    @Test func pasteControlDecodesImageProvider() async {
+        let provider = NSItemProvider(object: pasteTestImage(color: .systemPink))
+        let payloads = await ComposerPastePayload.payloads(from: [provider])
+        #expect(payloads.count == 1)
+        guard case .image(let data) = payloads.first else {
+            Issue.record("an image on the clipboard must arrive as an image payload")
+            return
+        }
+        #expect(!data.isEmpty)
+        #expect(UIImage(data: data) != nil)
+    }
+
+    /// The paste control only offers what the composer can take, so an image
+    /// on the clipboard has to make the button appear.
+    @MainActor
+    @Test func pasteControlAcceptsImages() {
+        let provider = NSItemProvider(object: pasteTestImage(color: .systemBlue))
+        #expect(ComposerPastePayload.canLoad(from: provider))
+        #expect(ComposerPastePayload.acceptingConfiguration.acceptableTypeIdentifiers.contains { identifier in
+            identifier.contains("image")
+        })
     }
 
     @MainActor
     @Test func pasteControlCapturesOriginWhenPasteBegins() async {
         let coordinator = ComposerPasteButton.Coordinator()
         var generation = 0
-        var delivered: (Int, [String])?
+        var delivered: (Int, [ComposerPastePayload])?
         coordinator.beginPaste = {
             generation += 1
             let captured = generation
@@ -887,7 +916,7 @@ struct ComposerOwnershipTests {
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
         #expect(delivered?.0 == 1)
-        #expect(delivered?.1 == ["FOCUS_VOICE_PASTE_SENTINEL"])
+        #expect(delivered?.1 == [.text("FOCUS_VOICE_PASTE_SENTINEL")])
     }
 
     @MainActor
@@ -1015,5 +1044,13 @@ private final class ReloadCountingTextView: IMEAwareTextView {
     override func reloadInputViews() {
         reloadCount += 1
         super.reloadInputViews()
+    }
+}
+
+/// A small solid-colour image, the way a screenshot arrives on the clipboard.
+private func pasteTestImage(color: UIColor) -> UIImage {
+    UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8)).image { context in
+        color.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
     }
 }

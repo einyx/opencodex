@@ -1435,13 +1435,46 @@ struct ChatTabView: View {
         }
     }
 
-    func beginOwnedPaste() -> ([String]) -> Void {
+    func beginOwnedPaste() -> ([ComposerPastePayload]) -> Void {
         let origin = ComposerWriteOrigin(
             sessionID: state.currentSessionID,
             host: state.captureHostRequestSnapshot()
         )
-        return { parts in
-            self.deliverPastedParts(parts, origin: origin)
+        return { payloads in
+            self.deliverPastedPayloads(payloads, origin: origin)
+        }
+    }
+
+    /// What the paste brought in: text goes into the draft, an image becomes
+    /// an attachment.
+    func deliverPastedPayloads(_ payloads: [ComposerPastePayload], origin: ComposerWriteOrigin) {
+        deliverPastedParts(payloads.compactMap { payload in
+            if case .text(let text) = payload { return text }
+            return nil
+        }, origin: origin)
+        for payload in payloads {
+            if case .image(let data) = payload {
+                attachPastedImage(data, origin: origin)
+            }
+        }
+    }
+
+    /// Attach an image the user pasted.
+    ///
+    /// An attachment is not text, so it does not wait for a marked selection to
+    /// resolve: it belongs to the composer that asked for it, and to no other.
+    func attachPastedImage(_ data: Data, origin: ComposerWriteOrigin) {
+        guard ComposerOwnedWrite.sameVisibleComposer(
+            origin: origin,
+            currentSessionID: state.currentSessionID,
+            currentHostID: state.currentHostProfileID
+        ) else { return }
+        do {
+            let attachment = try ComposerImageTranscoder.makeAttachment(from: data)
+            composerRevision &+= 1
+            imageAttachments.append(attachment)
+        } catch {
+            attachmentError = error.localizedDescription
         }
     }
 

@@ -46,14 +46,30 @@ enum UITestFixtures {
     static func seedSessionTreePasteboardIfRequested() {
         #if DEBUG
         guard hasUITestSessionTreeFixture else { return }
-        guard ProcessInfo.processInfo.environment["UITEST_PASTE_SENTINEL"] == pasteSentinel else { return }
-        let write = { UIPasteboard.general.string = pasteSentinel }
+        let write: () -> Void
+        if ProcessInfo.processInfo.environment["UITEST_PASTE_IMAGE"] == "1" {
+            // A screenshot on the clipboard: the paste control has to offer it
+            // and the composer has to turn it into an attachment.
+            write = { UIPasteboard.general.image = UITestFixtures.pasteImage }
+        } else {
+            guard ProcessInfo.processInfo.environment["UITEST_PASTE_SENTINEL"] == pasteSentinel else { return }
+            write = { UIPasteboard.general.string = pasteSentinel }
+        }
         if Thread.isMainThread {
             write()
         } else {
             DispatchQueue.main.sync(execute: write)
         }
         #endif
+    }
+
+    /// A small solid-colour image, the way a screenshot arrives on the
+    /// clipboard.
+    static var pasteImage: UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32)).image { context in
+            UIColor.systemPink.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+        }
     }
 
     static var hasUITestToolCardsFixture: Bool {
