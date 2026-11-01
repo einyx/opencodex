@@ -62,27 +62,38 @@ grep -E "UPLOAD SUCCEEDED|Uploaded" "$LOG_DIR/upload-$TARGET.log" | tail -2
 
 # --- 5) add it to the internal TestFlight group --------------------------
 log "adding to the internal TestFlight group"
-python3 - "$TARGET" <<'PY'
-import importlib.util, json, pathlib, sys, time
+python3 - "$TARGET" "$REPO_ROOT" <<'PY'
+import json, subprocess, sys, time
 
 target = sys.argv[1]
-spec = importlib.util.spec_from_file_location("asc", "/tmp/asc.py")
-asc = importlib.util.module_from_spec(spec)
-sys.modules["asc"] = asc
-spec.loader.exec_module(asc)
+api = sys.argv[2] + "/scripts/asc_api.py"
+
+
+def call(method, path, payload=None):
+    """Calls the App Store Connect API through `scripts/asc_api.py`."""
+    args = [sys.executable, api, method, path]
+    if payload is not None:
+        args.append(json.dumps(payload))
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"the API call failed: {result.stderr.strip()}")
+    if not result.stdout.strip():
+        return {}
+    return json.loads(result.stdout)
+
 
 GROUP = "fd7538da-068d-406a-b625-526d5133abd9"
 
 for attempt in range(12):
-    status, resp = asc.call("GET", "/v1/builds?limit=12&sort=-uploadedDate")
-    for build in resp.get("data", []):
+    builds = call("GET", "/v1/builds?limit=12&sort=-uploadedDate").get("data", [])
+    for build in builds:
         attrs = build.get("attributes", {})
         if attrs.get("version") == target and attrs.get("processingState") == "VALID":
-            status, _ = asc.call(
+            call(
                 "POST", f"/v1/betaGroups/{GROUP}/relationships/builds",
                 {"data": [{"type": "builds", "id": build["id"]}]},
             )
-            print(f"build {target} added to the TestFlight group ({status})")
+            print(f"build {target} added to the TestFlight group")
             raise SystemExit(0)
     print(f"build {target} still processing ({attempt + 1}/12)...")
     time.sleep(30)

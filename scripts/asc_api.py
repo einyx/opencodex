@@ -91,7 +91,9 @@ def main() -> int:
     token = make_token(key_id, issuer_id, key_path)
     url = path if path.startswith("http") else API + path
     result = subprocess.run(
-        ["curl", "-sS", "-X", method, url,
+        # -g: curl would otherwise read the brackets of a filter[...] query
+        # parameter as a glob range and refuse the URL.
+        ["curl", "-sS", "-g", "-X", method, url,
          "-H", f"Authorization: Bearer {token}",
          "-H", "Content-Type: application/json",
          *(["-d", body] if body else [])],

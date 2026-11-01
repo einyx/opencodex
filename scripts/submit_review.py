@@ -37,10 +37,13 @@ import sys
 import time
 
 APP_ID = "6826903678"
-VERSION_ID = "8fbf4b93-cc24-43d7-8087-83517987cb41"
+DEFAULT_VERSION_ID = "8fbf4b93-cc24-43d7-8087-83517987cb41"
 SET_ID = "e0a557ea-aa70-414a-a91d-b6528b7e6b93"  # APP_IPHONE_61
 SHOTS = sorted((pathlib.Path(__file__).resolve().parent.parent / ".occlient" / "review-shots").glob("shot*.png"))
 API = pathlib.Path(__file__).with_name("asc_api.py")
+
+# The states of a version that has not been sent to review yet.
+PENDING_STATES = {"PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW"}
 
 
 def call(method: str, path: str, payload: dict | None = None) -> dict:
@@ -118,14 +121,14 @@ def create_submission() -> str:
     return submission_id
 
 
-def add_version(submission_id: str) -> None:
+def add_version(submission_id: str, version_id: str) -> None:
     """Puts the version into the submission."""
     call("POST", "/v1/reviewSubmissionItems", {
         "data": {
             "type": "reviewSubmissionItems",
             "relationships": {
                 "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission_id}},
-                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": VERSION_ID}},
+                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version_id}},
             },
         }
     })
@@ -144,15 +147,32 @@ def commit(submission_id: str) -> None:
     print("submitted for review")
 
 
+def pending_version() -> str:
+    """The newest version that has not been sent to review yet.
+
+    The script submits the update that is waiting, not a version that was
+    already released — so its id does not have to be edited per release.
+    """
+    versions = call("GET", f"/v1/apps/{APP_ID}/appStoreVersions").get("data", [])
+    waiting = [
+        version for version in versions
+        if version["attributes"].get("appStoreState") in PENDING_STATES
+    ]
+    if not waiting:
+        return DEFAULT_VERSION_ID
+    return max(waiting, key=lambda version: version["attributes"].get("versionString", ""))["id"]
+
+
 def main() -> int:
     shots = "--shots" in sys.argv
     submit = "--submit" in sys.argv
+    version_id = pending_version()
 
-    version = call("GET", f"/v1/appStoreVersions/{VERSION_ID}")["data"]
+    version = call("GET", f"/v1/appStoreVersions/{version_id}")["data"]
     attributes = version["attributes"]
     state = attributes["appStoreState"]
     print(f"version {attributes['versionString']} is {state}")
-    build = call("GET", f"/v1/appStoreVersions/{VERSION_ID}/build").get("data", {})
+    build = call("GET", f"/v1/appStoreVersions/{version_id}/build").get("data", {})
     if build:
         print(f"  build {build['attributes']['version']}")
 
@@ -174,11 +194,11 @@ def main() -> int:
         print(f"reusing submission {submission_id}")
     else:
         submission_id = create_submission()
-        add_version(submission_id)
+        add_version(submission_id, version_id)
 
     commit(submission_id)
     time.sleep(3)
-    final = call("GET", f"/v1/appStoreVersions/{VERSION_ID}")["data"]["attributes"]
+    final = call("GET", f"/v1/appStoreVersions/{version_id}")["data"]["attributes"]
     print(f"version is now {final['appStoreState']}")
     return 0
 
