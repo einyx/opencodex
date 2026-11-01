@@ -129,6 +129,27 @@ struct V2EventTranslationTests {
         #expect(options?.first?["label"] as? String == "Red")
     }
 
+    /// The form has to reach the client with its option values: the app shows
+    /// the labels, the server wants the values, and the poll that lists the
+    /// forms has not seen this one yet.
+    @Test @MainActor func aFormFromTheStreamRegistersItsReplyTable() async throws {
+        let mock = MockAPIClient()
+        let state = makeIsolatedAppState(apiClient: mock)
+        var translator = V2EventTranslator()
+        let json = #"{"id":"e12","type":"form.created","data":{"form":{"id":"frm_1","sessionID":"ses_1","title":"Pick","fields":[{"key":"color","type":"string","options":[{"value":"red","label":"Red"}]}]}}}"#
+        let event = try #require(translate(json, with: &translator))
+
+        await state.handleSSEEvent(event)
+
+        #expect(state.pendingQuestions.first?.id == "frm_1")
+        let forms = await mock.rememberedFormTables
+        let registered = try #require(forms.first)
+        #expect(registered["id"] as? String == "frm_1")
+        let fields = try #require(registered["fields"] as? [[String: Any]])
+        let options = try #require(fields.first?["options"] as? [[String: Any]])
+        #expect(options.first?["value"] as? String == "red")
+    }
+
     @Test func formRepliedRemovesTheCard() throws {
         let json = #"{"id":"e13","type":"form.replied","data":{"id":"frm_1","sessionID":"ses_1"}}"#
         let event = try #require(translate(json))

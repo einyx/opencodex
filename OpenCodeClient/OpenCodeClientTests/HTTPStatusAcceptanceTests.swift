@@ -187,6 +187,44 @@ struct HTTPStatusAcceptanceTests {
         let health = try await client.health()
         #expect(health.healthy)
     }
+
+    /// A form that arrives over the event stream has to be answerable: the app
+    /// shows the options by their label, and the server wants their value.
+    @Test func aFormFromTheEventStreamIsAnsweredWithTheOptionValues() async throws {
+        let name = stubHost()
+        OfflineHTTPRegistry.set(host: name, stub: OfflineHTTPStub(status: 204, body: Data()))
+        defer { OfflineHTTPRegistry.remove(host: name) }
+        let client = APIClient(baseURL: "http://\(name)", session: makeSession())
+        await client.configure(baseURL: "http://\(name)", username: nil, password: nil, generation: .v2)
+
+        // The form as the event stream delivers it: the labels the app shows
+        // and the values the server expects.
+        await client.rememberFormReplyTable(from: [
+            "id": "frm_1",
+            "sessionID": "ses_1",
+            "fields": [
+                [
+                    "key": "color",
+                    "type": "string",
+                    "options": [
+                        ["value": "r", "label": "Red"],
+                        ["value": "b", "label": "Blue"],
+                    ],
+                ],
+            ],
+        ])
+
+        try await client.replyQuestion(requestID: "frm_1", answers: [["Red"]])
+
+        let requests = OfflineHTTPRegistry.requests(for: name)
+        let reply = requests.first { $0.path.contains("/form/frm_1/reply") }
+        #expect(reply?.method == "POST")
+        #expect(reply?.path == "/api/session/ses_1/form/frm_1/reply")
+        let body = try #require(reply?.body)
+        let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let answer = try #require(object["answer"] as? [String: Any])
+        #expect(answer["color"] as? String == "r")
+    }
 }
 
 private struct OfflineHTTPStub {
@@ -198,6 +236,8 @@ private struct OfflineHTTPStub {
 private enum OfflineHTTPRegistry {
     static let lock = NSLock()
     static var stubs: [String: OfflineHTTPStub] = [:]
+    /// The requests the stub answered, so a test can assert what was sent.
+    static var recorded: [String: [(method: String, path: String, body: Data)]] = [:]
 
     static func set(host: String, stub: OfflineHTTPStub) {
         lock.lock()
@@ -211,9 +251,22 @@ private enum OfflineHTTPRegistry {
         return stubs[host]
     }
 
+    static func record(host: String, method: String, path: String, body: Data) {
+        lock.lock()
+        recorded[host, default: []].append((method: method, path: path, body: body))
+        lock.unlock()
+    }
+
+    static func requests(for host: String) -> [(method: String, path: String, body: Data)] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded[host] ?? []
+    }
+
     static func remove(host: String) {
         lock.lock()
         stubs.removeValue(forKey: host)
+        recorded.removeValue(forKey: host)
         lock.unlock()
     }
 }
@@ -245,6 +298,12 @@ final class OfflineHTTPProtocol: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return
         }
+        OfflineHTTPRegistry.record(
+            host: host,
+            method: request.httpMethod ?? "GET",
+            path: url.path,
+            body: Self.bodyData(of: request)
+        )
         let response: URLResponse
         if stub.http {
             guard let http = HTTPURLResponse(
@@ -271,6 +330,27 @@ final class OfflineHTTPProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    /// The body of the request.
+    ///
+    /// A URL session hands a body to a protocol as a stream, so the bytes
+    /// have to be read from there rather than from `httpBody`.
+    private static func bodyData(of request: URLRequest) -> Data {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return Data() }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let size = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: size)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data
+    }
 }
 
 private func stubHost() -> String {

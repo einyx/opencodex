@@ -1000,6 +1000,21 @@ actor APIClient {
         return try JSONDecoder().decode([QuestionRequest].self, from: data)
     }
 
+    /// Register the reply table of a form that arrived over the event stream.
+    ///
+    /// The app shows the options of a form by their label and the server wants
+    /// their value, so the mapping has to exist before the answer is sent. A
+    /// form that arrives as an event is not in the polled list yet — the poll
+    /// only runs when the stream connects or a session is opened — so the
+    /// event itself has to bring the mapping.
+    func rememberFormReplyTable(from form: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: form),
+              let entry = try? V2Mapper.formReplyEntry(from: data) else {
+            return
+        }
+        formReplyTable[entry.id] = entry.entry
+    }
+
     func replyQuestion(requestID: String, answers: [[String]]) async throws {
         let generation = try await resolvedGeneration()
         if generation == .v2 {
@@ -1839,6 +1854,8 @@ protocol APIClientProtocol: Actor {
     func pendingQuestions() async throws -> [QuestionRequest]
     func replyQuestion(requestID: String, answers: [[String]]) async throws
     func rejectQuestion(requestID: String) async throws
+    /// Register the reply table of a form that arrived over the event stream.
+    func rememberFormReplyTable(from form: [String: Any])
     func providers() async throws -> ProvidersResponse
     func providerRegistry() async throws -> ProviderRegistryResponse
     func agents() async throws -> [AgentInfo]
@@ -1869,6 +1886,12 @@ extension APIClientProtocol {
     func sessionDiff(sessionID: String, from: String?, to: String?, context: Int?) async throws -> [FileDiff] {
         try await sessionDiff(sessionID: sessionID)
     }
+    /// Register the reply table of a form that arrived over the event stream.
+    ///
+    /// Only V2 needs one: it answers a form with the options' values, while
+    /// the app collects their labels. A client that speaks V1 has nothing to
+    /// map.
+    func rememberFormReplyTable(from form: [String: Any]) {}
     /// The status of a specific directory. V2 needs it: without a location
     /// the server resolves the request against its own working directory,
     /// which can be a large repository, and the call then hangs.

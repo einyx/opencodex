@@ -557,6 +557,12 @@ actor MockAPIClient: APIClientProtocol {
         if indicatorRequestsFail { throw URLError(.cannotConnectToHost) }
         indicatorQuestions.removeAll { $0.id == requestID }
     }
+    /// The forms the app registered from the event stream, so a test can see
+    /// that a form that arrived as an event carries its reply table.
+    private(set) var rememberedFormTables: [[String: Any]] = []
+    func rememberFormReplyTable(from form: [String: Any]) {
+        rememberedFormTables.append(form)
+    }
     func rejectQuestion(requestID: String) async throws {
         if indicatorRequestsFail { throw URLError(.cannotConnectToHost) }
         indicatorQuestions.removeAll { $0.id == requestID }

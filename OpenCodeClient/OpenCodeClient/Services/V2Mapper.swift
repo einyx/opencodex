@@ -320,20 +320,30 @@ nonisolated enum V2Mapper {
         for row in rows {
             guard let dictionary = row as? [String: Any],
                   let encoded = try? JSONSerialization.data(withJSONObject: dictionary),
-                  let wire = try? JSONDecoder().decode(V2Form.self, from: encoded) else {
+                  let entry = try? formReplyEntry(from: encoded) else {
                 continue
             }
-            let fields = wire.fields.map { field in
-                FormReplyEntry.Field(
-                    key: field.key,
-                    optionValues: (field.options ?? []).reduce(into: [:]) { values, option in
-                        values[option.label] = option.value
-                    }
-                )
-            }
-            table[wire.id] = FormReplyEntry(sessionID: wire.sessionID, fields: fields)
+            table[entry.id] = entry.entry
         }
         return table
+    }
+
+    /// The reply table of one form.
+    ///
+    /// A form that arrives over the event stream is not in the polled list
+    /// yet, so the poll cannot be the only source of the mapping from the
+    /// labels the app shows to the values the server expects.
+    static func formReplyEntry(from data: Data) throws -> (id: String, entry: FormReplyEntry) {
+        let wire = try JSONDecoder().decode(V2Form.self, from: data)
+        let fields = wire.fields.map { field in
+            FormReplyEntry.Field(
+                key: field.key,
+                optionValues: (field.options ?? []).reduce(into: [:]) { values, option in
+                    values[option.label] = option.value
+                }
+            )
+        }
+        return (wire.id, FormReplyEntry(sessionID: wire.sessionID, fields: fields))
     }
 
     // MARK: - Active sessions

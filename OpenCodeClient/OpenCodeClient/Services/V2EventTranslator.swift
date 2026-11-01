@@ -345,8 +345,11 @@ nonisolated struct V2EventTranslator {
             guard let key = field["key"] as? String else { return nil }
             let options = (field["options"] as? [[String: Any]] ?? []).map { option in
                 [
-                    "label": option["label"] as Any,
-                    "description": option["description"] as Any,
+                    // A V2 option may carry no description. The app's option
+                    // has one, and a null would fail the whole question's
+                    // decoding — the card would never appear.
+                    "label": (option["label"] as? String) ?? "",
+                    "description": (option["description"] as? String) ?? "",
                 ]
             }
             var question: [String: Any] = [

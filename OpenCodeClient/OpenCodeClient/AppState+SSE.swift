@@ -432,6 +432,11 @@ extension AppState {
             PermissionController.applyRepliedEvent(properties: props, to: &pendingPermissions)
         case "question.asked":
             questionRevision &+= 1
+            // A form that arrives over the stream is not in the polled list
+            // yet. Its reply table — the labels the app shows mapped to the
+            // values the server wants — has to travel with the event, or the
+            // answer cannot be sent.
+            await apiClient.rememberFormReplyTable(from: props.mapValues(\.value))
             if let question = QuestionController.parseAskedEvent(properties: props),
                !pendingQuestions.contains(where: { $0.id == question.id }) {
                 pendingQuestions.append(question)
