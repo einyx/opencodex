@@ -73,3 +73,6 @@ docs/archive/2026-06_markdown_web_preview_rfc.md
 
 # local test-runner state (simulator pin + derived data)
 .occlient/
+
+# locally installed third-party agent skills (npx skills add) — not part of the app
+.agents/
