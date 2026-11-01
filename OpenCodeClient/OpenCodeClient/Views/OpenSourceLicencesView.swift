@@ -16,14 +16,32 @@ struct OpenSourceLicencesView: View {
         return text
     }
 
+    /// The notices as paragraphs.
+    ///
+    /// The document is long — every licence in full. One `Text` would lay out
+    /// every line at once, and the page stayed blank for seconds while it did
+    /// that: the layout of a 100 KB string is one pass, not a scroll. The
+    /// paragraphs live in a lazy stack instead, so only the ones on screen are
+    /// laid out, and the page is there the moment it opens.
+    private var paragraphs: [String] {
+        notices
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .newlines) }
+            .filter { !$0.isEmpty }
+    }
+
     var body: some View {
         ScrollView {
-            Text(notices)
-                .font(.footnote.monospaced())
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(DesignSpacing.lg)
-                .accessibilityIdentifier("settings-open-source-licences-text")
+            LazyVStack(alignment: .leading, spacing: DesignSpacing.md) {
+                ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                    Text(paragraph)
+                        .font(DesignTypography.microMono)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(DesignSpacing.lg)
+            .accessibilityIdentifier("settings-open-source-licences-text")
         }
         .navigationTitle(L10n.t(.settingsOpenSourceLicences))
         .navigationBarTitleDisplayMode(.inline)
