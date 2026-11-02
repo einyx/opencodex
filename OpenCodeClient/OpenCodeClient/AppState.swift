@@ -437,6 +437,20 @@ final class AppState {
         return diagnostic.hostProfileID == currentHostProfileID ? diagnostic : nil
     }
 
+    /// The host cannot be reached: the connection failed, or the app was left
+    /// disconnected with an error to explain.
+    ///
+    /// The Settings surface draws the unplugged plug in this state and the
+    /// session list says so instead of claiming the account has no sessions.
+    var hostIsUnreachable: Bool {
+        HostUnreachablePolicy.isUnreachable(
+            isChecking: isConnectionCheckInFlight,
+            diagnostic: currentHostConnectionDiagnostic,
+            connectionError: connectionError,
+            isConnected: isConnected
+        )
+    }
+
     /// Marks the start of a connection check.
     func beginConnectionCheck() {
         connectionCheckDepth += 1

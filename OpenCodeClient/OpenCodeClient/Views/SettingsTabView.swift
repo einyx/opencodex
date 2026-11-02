@@ -34,9 +34,7 @@ struct SettingsTabView: View {
     /// that render the failure copy, so the drawing never appears without the
     /// message that says why.
     private var showsOfflineArt: Bool {
-        if checking { return false }
-        if currentHostDiagnostic?.phase == .failed { return true }
-        return state.connectionError != nil && !state.isConnected && currentHostDiagnostic == nil
+        state.hostIsUnreachable
     }
 
     var body: some View {
@@ -130,6 +128,22 @@ struct SettingsTabView: View {
             // exactly as they are — the drawing states the state, it never
             // replaces the copy or the way out (HIG Feedback).
             if showsOfflineArt {
+                if canCheckConnection {
+                    Button {
+                        Task { await state.refresh() }
+                    } label: {
+                        Text(L10n.t(.settingsCheck))
+                            // HIG Buttons: the one actionable control takes
+                            // the house accent.
+                            .fontWeight(.medium)
+                            .frame(minHeight: ComposerHitTarget.minimum)
+                    }
+                    .buttonStyle(.borderless)
+                    .tint(DesignColors.Brand.primary)
+                    .accessibilityIdentifier("settings-test-connection")
+                    .disabled(!canCheckConnection)
+                }
+
                 Image("OfflineArt")
                     .resizable()
                     .scaledToFit()

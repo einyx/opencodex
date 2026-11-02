@@ -70,7 +70,7 @@ struct SessionListView: View {
 
             Group {
                 if activeNodes.isEmpty && archivedNodes.isEmpty && searchText.isEmpty {
-                    SessionListEmptyState()
+                    SessionListEmptyState(state: state)
                 } else {
                     List {
                         if !searchText.isEmpty {
@@ -280,8 +280,24 @@ struct SessionListView: View {
 /// list is empty, not broken. The drawing is decorative, so the copy below it
 /// stays the only thing VoiceOver reads. The same scene serves the phone sheet
 /// and the iPad column — one idea, one surface, two layouts.
+///
+/// Two things can make the list empty and they must not look the same. A host
+/// that cannot be reached has not said it has no sessions — nobody could
+/// ask — so that state says what happened and offers the way out. Artwork is
+/// for absence, not failure (HIG Feedback).
 struct SessionListEmptyState: View {
+    @Bindable var state: AppState
+
     var body: some View {
+        if state.hostIsUnreachable {
+            unreachable
+        } else {
+            ruledLines
+        }
+    }
+
+    /// The host has no sessions.
+    private var ruledLines: some View {
         VStack(spacing: DesignSpacing.md) {
             Image("NoSessionsArt")
                 .resizable()
@@ -302,6 +318,52 @@ struct SessionListEmptyState: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, DesignSpacing.lg)
         .padding(.vertical, DesignSpacing.xl)
+    }
+
+    /// The host could not be reached: the list is empty because nobody could
+    /// ask, not because the account has nothing.
+    private var unreachable: some View {
+        VStack(spacing: DesignSpacing.md) {
+            Text(L10n.t(.connectionPhaseFailed))
+                .font(DesignTypography.headline)
+                .foregroundStyle(DesignColors.Neutral.text)
+                .multilineTextAlignment(.center)
+
+            if let message = unreachableMessage, !message.isEmpty {
+                Text(message)
+                    .font(DesignTypography.meta)
+                    // POL-COLOR-11: an error surface is the accent and the
+                    // words, not a coloured word. The message says what
+                    // happened; the Check button is the way out.
+                    .foregroundStyle(DesignColors.Neutral.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("sessions-unreachable-message")
+            }
+
+            Button {
+                Task { await state.refresh() }
+            } label: {
+                Text(L10n.t(.settingsCheck))
+                    .fontWeight(.medium)
+                    .frame(minHeight: ComposerHitTarget.minimum)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignColors.Brand.primary)
+            .disabled(state.isConnectionCheckInFlight)
+            .accessibilityIdentifier("sessions-check-connection")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, DesignSpacing.lg)
+        .padding(.vertical, DesignSpacing.xl)
+    }
+
+    /// Why the host could not be reached: the diagnostic's own message, or the
+    /// error the connection left behind.
+    private var unreachableMessage: String? {
+        if let diagnostic = state.currentHostConnectionDiagnostic, diagnostic.phase == .failed {
+            return diagnostic.message
+        }
+        return state.connectionError
     }
 }
 

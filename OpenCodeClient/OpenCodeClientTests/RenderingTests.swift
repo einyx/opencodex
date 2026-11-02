@@ -708,6 +708,75 @@ struct ChatScrollBehaviorTests {
     }
 }
 
+struct HostUnreachablePolicyTests {
+
+    /// A failed connection is unreachable, whatever else is true.
+    @Test func aFailedDiagnosticIsUnreachable() {
+        #expect(HostUnreachablePolicy.isUnreachable(
+            isChecking: false,
+            diagnostic: diagnostic(phase: .failed),
+            connectionError: nil,
+            isConnected: false
+        ))
+    }
+
+    /// A check in flight is not evidence: the host may be fine.
+    @Test func aRunningCheckIsNotUnreachable() {
+        #expect(!HostUnreachablePolicy.isUnreachable(
+            isChecking: true,
+            diagnostic: diagnostic(phase: .failed),
+            connectionError: "boom",
+            isConnected: false
+        ))
+    }
+
+    /// Left disconnected with an error to explain.
+    @Test func aConnectionErrorIsUnreachable() {
+        #expect(HostUnreachablePolicy.isUnreachable(
+            isChecking: false,
+            diagnostic: nil,
+            connectionError: "boom",
+            isConnected: false
+        ))
+    }
+
+    /// Connected, or simply idle: nothing is wrong.
+    @Test func aConnectedHostIsReachable() {
+        #expect(!HostUnreachablePolicy.isUnreachable(
+            isChecking: false,
+            diagnostic: nil,
+            connectionError: nil,
+            isConnected: true
+        ))
+        #expect(!HostUnreachablePolicy.isUnreachable(
+            isChecking: false,
+            diagnostic: nil,
+            connectionError: nil,
+            isConnected: false
+        ))
+    }
+
+    /// A diagnostic that is not a failure says nothing about reachability.
+    @Test func aHealthyDiagnosticIsNotUnreachable() {
+        #expect(!HostUnreachablePolicy.isUnreachable(
+            isChecking: false,
+            diagnostic: diagnostic(phase: .connected),
+            connectionError: nil,
+            isConnected: false
+        ))
+    }
+
+    private func diagnostic(phase: ConnectionPhase) -> ConnectionDiagnostic {
+        ConnectionDiagnostic(
+            hostProfileID: UUID(),
+            phase: phase,
+            message: "boom",
+            recoveryHint: nil,
+            timestamp: Date(timeIntervalSince1970: 1)
+        )
+    }
+}
+
 struct ToolActivityPlaceholderPolicyTests {
 
     /// The wrench marks the idle tool region: a session with turns, no tool

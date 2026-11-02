@@ -700,7 +700,7 @@ private struct TabletSessionsColumn: View {
                 if showSettings {
                     SettingsTabView(state: state, isCarModeEnabled: .constant(false))
                 } else if activeNodes.isEmpty && archivedNodes.isEmpty && searchText.isEmpty {
-                    SessionListEmptyState()
+                    SessionListEmptyState(state: state)
                 } else {
                     List {
                         if !searchText.isEmpty {
