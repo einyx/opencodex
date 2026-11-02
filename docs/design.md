@@ -162,7 +162,7 @@ The chat screen follows the Claude iOS app's interaction model: minimal chrome, 
 - **Turn state is transient.** The indicator, the activity text and the abort menu appear only while there is something to say; they are not a permanent block above the input.
 - **One row per tool call.** There is no merged "N tool calls" group: every call renders the same compact row (icon, name, subject line, chevron) and expands in place. A group disclosure stacked on top of each card's own disclosure was a double disclosure.
 - **User message = bubble.** Right-aligned, capped at 320pt, one tucked corner — Claude's treatment. The full-width accent stripe read as a system event rather than as something the person said.
-- **The asterisk is the mark.** The app icon is an eight-spoke asterisk in the brand accent on the ink background (it was a pixel-art robot), and the empty chat greets you with the same mark over “How can I help you?”.
+- **One scene per surface, from one line language.** The app icon is the ink-line eye of the artwork set — it was an eight-spoke asterisk, and a pixel-art robot before that — and every empty state carries one hand-drawn scene from the same set. The empty chat greets with the clock of a session's empty history over “How can I help you?”. The map of scene to surface is `design/artwork-placement.md`.
 - **Glass everywhere it is a surface.** Every floating surface goes through one `glassSurface` modifier: `glassEffect(.regular.interactive())` on iOS 26, a translucent material with a hairline edge on iOS 17–25, so the fallback never drifts from the design.
 
 ## QT-COMPOSER · Composer
