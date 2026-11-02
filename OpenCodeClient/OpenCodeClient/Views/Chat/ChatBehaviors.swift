@@ -1,5 +1,36 @@
 import SwiftUI
 
+/// When the transcript's tool region shows the idle artwork.
+///
+/// The region where the tool output lands is empty until the agent runs
+/// something, and the wrench marks it. It is not the artwork's job to say
+/// "nothing here yet" everywhere: a running turn is a loading state, not an
+/// empty one, and a transcript that ends with the user's own message is a
+/// turn in flight. Both already carry their own signal, so the artwork
+/// stays out of them.
+enum ToolActivityPlaceholderPolicy {
+    static func shows(
+        hasSession: Bool,
+        messages: [MessageWithParts],
+        isBusy: Bool
+    ) -> Bool {
+        guard hasSession else { return false }
+        // An empty transcript has its own scene (the empty-chat artwork).
+        guard !messages.isEmpty else { return false }
+        guard !isBusy else { return false }
+        guard !hasToolOutput(in: messages) else { return false }
+        guard let last = messages.last, !last.info.isUser else { return false }
+        return true
+    }
+
+    /// True once the agent has produced any tool or patch output.
+    static func hasToolOutput(in messages: [MessageWithParts]) -> Bool {
+        messages.contains { message in
+            message.parts.contains { $0.isTool || $0.isPatch }
+        }
+    }
+}
+
 /// Should the chat view auto-scroll to the bottom on new content?
 /// Tracks how close the user already is to the bottom — once they've
 /// scrolled up far enough, we stop chasing new messages so reading

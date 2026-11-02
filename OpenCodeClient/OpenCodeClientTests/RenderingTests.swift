@@ -708,6 +708,152 @@ struct ChatScrollBehaviorTests {
     }
 }
 
+struct ToolActivityPlaceholderPolicyTests {
+
+    /// The wrench marks the idle tool region: a session with turns, no tool
+    /// output yet, and nothing running.
+    @Test func showsForAnIdleSessionWithTurns() {
+        #expect(ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [assistantMessage(parts: [textPart()])],
+            isBusy: false
+        ))
+    }
+
+    /// No session, no region to mark.
+    @Test func hidesWithoutASession() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: false,
+            messages: [assistantMessage(parts: [textPart()])],
+            isBusy: false
+        ))
+    }
+
+    /// An empty transcript has its own scene.
+    @Test func hidesForAnEmptyTranscript() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [],
+            isBusy: false
+        ))
+    }
+
+    /// A running turn is a loading state, not an empty one.
+    @Test func hidesWhileTheTurnRuns() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [assistantMessage(parts: [textPart()])],
+            isBusy: true
+        ))
+    }
+
+    /// The artwork leaves as soon as the agent runs a tool.
+    @Test func hidesOnceAToolRan() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [assistantMessage(parts: [textPart(), toolPart()])],
+            isBusy: false
+        ))
+    }
+
+    /// A patch counts as tool output too: the changes card is output.
+    @Test func hidesOnceAPatchLanded() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [assistantMessage(parts: [patchPart()])],
+            isBusy: false
+        ))
+    }
+
+    /// A transcript that ends with the user's own message is a turn in
+    /// flight, not an idle region.
+    @Test func hidesWhenTheLastMessageIsTheUser() {
+        #expect(!ToolActivityPlaceholderPolicy.shows(
+            hasSession: true,
+            messages: [assistantMessage(parts: [textPart()]), userMessage(parts: [textPart()])],
+            isBusy: false
+        ))
+    }
+
+    private func assistantMessage(parts: [Part]) -> MessageWithParts {
+        MessageWithParts(
+            info: message(id: "m1", role: "assistant"),
+            parts: parts
+        )
+    }
+
+    private func userMessage(parts: [Part]) -> MessageWithParts {
+        MessageWithParts(
+            info: message(id: "m2", role: "user"),
+            parts: parts
+        )
+    }
+
+    private func message(id: String, role: String) -> Message {
+        Message(
+            id: id,
+            sessionID: "s1",
+            role: role,
+            parentID: nil,
+            providerID: nil,
+            modelID: nil,
+            model: nil,
+            error: nil,
+            time: Message.TimeInfo(created: 1, completed: 2),
+            finish: nil,
+            tokens: nil,
+            cost: nil,
+            structured: nil,
+            agent: nil
+        )
+    }
+
+    private func textPart() -> Part {
+        Part(
+            id: "p1",
+            messageID: "m1",
+            sessionID: "s1",
+            type: "text",
+            text: "hello",
+            tool: nil,
+            callID: nil,
+            state: nil,
+            metadata: nil,
+            files: nil
+        )
+    }
+
+    private func toolPart() -> Part {
+        Part(
+            id: "p2",
+            messageID: "m1",
+            sessionID: "s1",
+            type: "tool",
+            text: nil,
+            tool: "shell",
+            callID: "call_1",
+            state: nil,
+            metadata: nil,
+            files: nil
+        )
+    }
+
+    private func patchPart() -> Part {
+        Part(
+            id: "p3",
+            messageID: "m1",
+            sessionID: "s1",
+            type: "patch",
+            text: nil,
+            tool: nil,
+            callID: nil,
+            state: nil,
+            metadata: nil,
+            files: nil
+        )
+    }
+}
+
 struct SessionListEdgeSwipeBehaviorTests {
 
     @Test func opensForLeftEdgeSwipeWithStrongHorizontalTravel() {

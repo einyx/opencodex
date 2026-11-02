@@ -503,14 +503,6 @@ struct ChatTabView: View {
         return state.messages.filter { $0.info.sessionID == sessionID }
     }
 
-    /// True once the agent has produced any tool or patch output in this
-    /// session. Until then the tool region of the transcript is empty.
-    private var currentSessionHasToolOutput: Bool {
-        currentSessionMessages.contains { message in
-            message.parts.contains { $0.isTool || $0.isPatch }
-        }
-    }
-
     /// The tool/activity region is idle while the session has turns but the
     /// agent has not run a tool yet — the region where the tool output lands
     /// is still empty, and the wrench marks it.
@@ -520,13 +512,11 @@ struct ChatTabView: View {
     /// a transcript that ends with the user's own message is a turn in
     /// flight rather than an idle region.
     private var showsToolActivityPlaceholder: Bool {
-        guard state.currentSessionID != nil else { return false }
-        // An empty transcript has its own scene (the empty-chat artwork).
-        guard !currentSessionMessages.isEmpty else { return false }
-        guard !isCurrentSessionBusy else { return false }
-        guard !currentSessionHasToolOutput else { return false }
-        guard let last = currentSessionMessages.last, !last.info.isUser else { return false }
-        return true
+        ToolActivityPlaceholderPolicy.shows(
+            hasSession: state.currentSessionID != nil,
+            messages: currentSessionMessages,
+            isBusy: isCurrentSessionBusy
+        )
     }
 
     private var voiceRailMode: VoiceRailWaveformView.Mode {
